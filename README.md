@@ -314,10 +314,16 @@ pip install -e ".[dev]"
 ### Running Tests
 
 ```bash
-make test              # Run tests
+make test              # Run tests (excludes network tests)
 make test-cov          # Run tests with coverage
 make coverage-report   # Show coverage report
+
+# Run all tests including network tests (requires internet)
+pytest tests/          # Run all 19 tests
+pytest tests/ -m network  # Run only network tests (4 tests)
 ```
+
+**Note:** Network tests make real API calls to Open-Meteo and are excluded from CI to avoid flaky builds. They include automatic retry logic for local development.
 
 ### Code Quality
 
