@@ -1,0 +1,25 @@
+{
+  "servers": {
+    "weather": {
+      "command": "chuk-mcp-open-meteo",
+      "type": "stdio",
+      "description": "Open-Meteo weather server - comprehensive weather data including forecasts, historical data, air quality, and marine conditions"
+    },
+    "weather-dev": {
+      "command": "python",
+      "args": ["-m", "chuk_mcp_open_meteo.server"],
+      "env": {
+        "PYTHONPATH": "${HOME}/path/to/chuk-mcp-open-meteo/src",
+        "PYTHONUNBUFFERED": "1"
+      },
+      "type": "stdio",
+      "description": "Open-Meteo weather server (development mode)"
+    },
+    "weather-uv": {
+      "command": "uv",
+      "args": ["run", "chuk-mcp-open-meteo"],
+      "type": "stdio",
+      "description": "Open-Meteo weather server via uv"
+    }
+  }
+}

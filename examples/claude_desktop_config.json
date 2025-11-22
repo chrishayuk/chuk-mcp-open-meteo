@@ -1,0 +1,7 @@
+{
+  "mcpServers": {
+    "open-meteo": {
+      "command": "chuk-mcp-open-meteo"
+    }
+  }
+}

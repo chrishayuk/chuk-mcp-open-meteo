@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "open-meteo": {
+      "command": "uvx",
+      "args": ["chuk-mcp-open-meteo"]
+    }
+  }
+}
