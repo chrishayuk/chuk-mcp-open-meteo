@@ -231,12 +231,15 @@ async def test_pydantic_validation():
 
 
 @pytest.mark.asyncio
-async def test_nested_model_access():
+@pytest.mark.network
+async def test_nested_model_access(retry_on_network_error):
     """Test accessing nested Pydantic models."""
-    result = await get_weather_forecast(
-        latitude=51.5072,
-        longitude=-0.1276,
-        current_weather=True,
+    result = await retry_on_network_error(
+        lambda: get_weather_forecast(
+            latitude=51.5072,
+            longitude=-0.1276,
+            current_weather=True,
+        )
     )
 
     # Test nested model access
@@ -251,13 +254,16 @@ async def test_nested_model_access():
 
 
 @pytest.mark.asyncio
-async def test_weather_forecast_with_daily():
+@pytest.mark.network
+async def test_weather_forecast_with_daily(retry_on_network_error):
     """Test weather forecast with daily data."""
-    result = await get_weather_forecast(
-        latitude=40.7128,
-        longitude=-74.0060,
-        daily="temperature_2m_max,temperature_2m_min,precipitation_sum",
-        forecast_days=3,
+    result = await retry_on_network_error(
+        lambda: get_weather_forecast(
+            latitude=40.7128,
+            longitude=-74.0060,
+            daily="temperature_2m_max,temperature_2m_min,precipitation_sum",
+            forecast_days=3,
+        )
     )
 
     assert isinstance(result, WeatherForecast)
@@ -267,12 +273,15 @@ async def test_weather_forecast_with_daily():
 
 
 @pytest.mark.asyncio
-async def test_air_quality_with_custom_hourly():
+@pytest.mark.network
+async def test_air_quality_with_custom_hourly(retry_on_network_error):
     """Test air quality with custom hourly parameters."""
-    result = await get_air_quality(
-        latitude=34.0522,
-        longitude=-118.2437,
-        hourly="pm10,ozone,us_aqi",
+    result = await retry_on_network_error(
+        lambda: get_air_quality(
+            latitude=34.0522,
+            longitude=-118.2437,
+            hourly="pm10,ozone,us_aqi",
+        )
     )
 
     assert isinstance(result, AirQualityResponse)
@@ -281,13 +290,16 @@ async def test_air_quality_with_custom_hourly():
 
 
 @pytest.mark.asyncio
-async def test_marine_forecast_with_daily():
+@pytest.mark.network
+async def test_marine_forecast_with_daily(retry_on_network_error):
     """Test marine forecast with daily data."""
-    result = await get_marine_forecast(
-        latitude=21.3099,
-        longitude=-157.8581,
-        daily="wave_height_max,wave_direction_dominant",
-        forecast_days=3,
+    result = await retry_on_network_error(
+        lambda: get_marine_forecast(
+            latitude=21.3099,
+            longitude=-157.8581,
+            daily="wave_height_max,wave_direction_dominant",
+            forecast_days=3,
+        )
     )
 
     assert isinstance(result, MarineForecast)
