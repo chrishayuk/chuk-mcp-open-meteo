@@ -273,6 +273,16 @@ class HourlyMarine(BaseModel):
         description="Ocean current direction in degrees (0-360, direction current is flowing TOWARDS)",
     )
 
+    # Tides and sea level
+    sea_level_height_msl: Optional[list[Optional[float]]] = Field(
+        None,
+        description="Sea level height in meters relative to mean sea level, accounting for tides, inverted "
+        "barometer effect, and sea surface height variations. Positive values indicate higher water, "
+        "negative values indicate lower water. Use this for tide predictions and timing beach/surf activities. "
+        "The tidal cycle is clearly visible in this data (high/low tides every ~6 hours). "
+        "Note: Accuracy is limited in coastal areas - use with caution and not for navigation.",
+    )
+
 
 class DailyMarine(BaseModel):
     """Daily marine forecast data."""

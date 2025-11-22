@@ -218,10 +218,12 @@ async def geocode_location(
         - For ambiguous names, check country/admin divisions to pick the right one
         - Use the exact latitude/longitude from results in weather API calls
         - Timezone from geocoding can be passed to weather APIs for local time
-        - **IMPORTANT**: If no results found, try simpler search terms!
-          The API works best with just city names (e.g., "Mullion" not "Mullion, Cornwall")
-          If "City, Region" fails → try just "City" → then filter results by admin1/admin2/country
-        - If still no results: name might be misspelled or not in database
+        - **CRITICAL**: If no results found, IMMEDIATELY retry with simpler search terms!
+          The API works best with just city names (e.g., "Portland" not "Portland Harbor" or "Portland, Maine")
+          WORKFLOW: If "City, Region" fails → AUTOMATICALLY try just "City" → filter by admin1/admin2/country
+          DO NOT ask the user - just retry automatically with the simpler name!
+        - If still no results after retry: try even simpler terms or use nearest known location
+        - Common pattern: "Harbor Name" fails → retry just the city name → filter by region/country
 
     Example:
         # Find London coordinates
@@ -236,12 +238,12 @@ async def geocode_location(
         # Pick based on context or ask user
 
         # If "City, Region" returns no results, try just "City"
-        locations = await geocode_location("Mullion, Cornwall", count=5)
+        locations = await geocode_location("Portland, Maine", count=5)
         if not locations.results:
             # Try simpler search
-            locations = await geocode_location("Mullion", count=5)
-            # Filter by admin2='Cornwall' to get the right one
-            mullion = next(r for r in locations.results if r.admin2 == 'Cornwall')
+            locations = await geocode_location("Portland", count=5)
+            # Filter by country_code='US' and admin1='Maine' to get the right one
+            portland = next(r for r in locations.results if r.country_code == 'US' and r.admin1 == 'Maine')
     """
     params = {
         "name": name,
@@ -379,9 +381,12 @@ async def get_marine_forecast(
     daily: Optional[str] = None,
     forecast_days: int = 7,
 ) -> MarineForecast:
-    """Get ocean and marine weather forecasts including waves, swell, currents, and tides.
+    """Get ocean and marine weather forecasts including waves, swell, currents, and TIDES.
 
-    Use this for maritime activities, surfing, sailing, fishing, or beach conditions.
+    **PRIMARY USE FOR TIDES**: This tool provides tidal height predictions via the 'sea_level_height_msl' variable.
+    Use this when users ask about tide times, high/low tides, or tide heights for coastal locations.
+
+    Also use this for maritime activities, surfing, sailing, fishing, or beach conditions.
     Provides detailed wave forecasts from multiple global ocean models.
 
     Args:
@@ -411,6 +416,9 @@ async def get_marine_forecast(
             - ocean_current_velocity: Current speed in m/s
             - ocean_current_direction: Current direction in degrees
 
+            Tides (IMPORTANT for tide predictions):
+            - sea_level_height_msl: Sea level height in meters (includes tides - shows clear tidal cycles)
+
             Other useful variables:
             - sea_surface_temperature: Water temperature in °C
 
@@ -431,6 +439,12 @@ async def get_marine_forecast(
             - timezone: Timezone information
 
     Tips for LLMs:
+        - **TIDE QUERIES**: When user asks "what are the tide times" or "when is high/low tide":
+            1. Use geocode_location to get coordinates (try just city name if "City, Region" fails)
+            2. Call this tool with hourly="sea_level_height_msl" immediately (don't ask for clarification first!)
+            3. Analyze the sea_level_height_msl values to find peaks (high tide) and troughs (low tide)
+            4. Present the times and heights to the user
+            Example: "High tide at 05:00 (+1.63m), Low tide at 12:00 (-2.17m)"
         - Use this for surfing, sailing, boating, fishing, beach safety questions
         - wave_height is the key metric - measured in meters:
             * 0-0.5m: Calm, good for swimming
@@ -449,21 +463,34 @@ async def get_marine_forecast(
         - ocean_current data important for safety and navigation
 
     Common use cases:
-        - Surfing: Check wave_height, wave_period, swell_wave_height
-        - Swimming safety: Check wave_height (stay <1m for safety)
-        - Sailing/boating: Check wave_height, wave_period, ocean_current_velocity
-        - Fishing: Check ocean_current and sea_surface_temperature
-        - Beach conditions: Check wave_height and combine with weather forecast (wind, rain)
+        - **Tide predictions**: Use sea_level_height_msl to find high/low tide times and heights
+        - Surfing: Check wave_height, wave_period, swell_wave_height, and sea_level_height_msl (tides affect wave quality)
+        - Swimming safety: Check wave_height (stay <1m for safety) and sea_level_height_msl (avoid swimming during strong tidal currents)
+        - Sailing/boating: Check wave_height, wave_period, ocean_current_velocity, and sea_level_height_msl (for harbor entry/exit timing)
+        - Fishing: Check ocean_current, sea_surface_temperature, and sea_level_height_msl (fish feeding patterns follow tides)
+        - Beach conditions: Check wave_height, sea_level_height_msl, and combine with weather forecast (wind, rain)
 
     Example:
-        # Get surf conditions for Hawaii
+        # Get tide times and heights for a coastal location
+        marine = await get_marine_forecast(
+            51.5074, -0.1278,  # Example coordinates (coastal UK)
+            hourly="sea_level_height_msl",
+            timezone="Europe/London",
+            forecast_days=1
+        )
+        # Find high and low tides by analyzing sea_level_height_msl values
+        # High tide = maximum values (e.g., +1.5m), Low tide = minimum values (e.g., -2.0m)
+        # Tidal cycle repeats approximately every 12 hours (two highs and two lows per day)
+
+        # Get surf conditions for Hawaii (including tides)
         marine = await get_marine_forecast(
             21.3099, -157.8581,  # Honolulu coordinates
-            hourly="wave_height,wave_period,swell_wave_height,swell_wave_direction",
+            hourly="wave_height,wave_period,swell_wave_height,swell_wave_direction,sea_level_height_msl",
             forecast_days=3
         )
         current_wave_height = marine.hourly.wave_height[0]
         current_period = marine.hourly.wave_period[0]
+        current_tide = marine.hourly.sea_level_height_msl[0]
 
         # Check if good for surfing
         if 1.5 <= current_wave_height <= 3.0 and current_period >= 10:
@@ -486,9 +513,9 @@ async def get_marine_forecast(
     if hourly:
         params["hourly"] = hourly
     else:
-        # Default to key marine metrics
+        # Default to key marine metrics including tides
         params["hourly"] = (
-            "wave_height,wave_direction,wave_period,wind_wave_height,swell_wave_height"
+            "wave_height,wave_direction,wave_period,wind_wave_height,swell_wave_height,sea_level_height_msl"
         )
 
     if daily:
