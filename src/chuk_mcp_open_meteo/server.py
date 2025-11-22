@@ -218,7 +218,10 @@ async def geocode_location(
         - For ambiguous names, check country/admin divisions to pick the right one
         - Use the exact latitude/longitude from results in weather API calls
         - Timezone from geocoding can be passed to weather APIs for local time
-        - If no results: name might be misspelled, too specific, or not in database
+        - **IMPORTANT**: If no results found, try simpler search terms!
+          The API works best with just city names (e.g., "Mullion" not "Mullion, Cornwall")
+          If "City, Region" fails → try just "City" → then filter results by admin1/admin2/country
+        - If still no results: name might be misspelled or not in database
 
     Example:
         # Find London coordinates
@@ -232,8 +235,13 @@ async def geocode_location(
         # results[1] = Paris, Texas (population 25K)
         # Pick based on context or ask user
 
-        # Search with country for precision
-        locations = await geocode_location("Portland, Oregon", count=1)
+        # If "City, Region" returns no results, try just "City"
+        locations = await geocode_location("Mullion, Cornwall", count=5)
+        if not locations.results:
+            # Try simpler search
+            locations = await geocode_location("Mullion", count=5)
+            # Filter by admin2='Cornwall' to get the right one
+            mullion = next(r for r in locations.results if r.admin2 == 'Cornwall')
     """
     params = {
         "name": name,

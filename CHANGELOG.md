@@ -35,9 +35,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added comprehensive tests for all API parameters and edge cases
 - Enhanced all tool docstrings with LLM-friendly guidance
 - Added comprehensive weather code database (WMO codes 0-99)
+- **`geocode_location` docstring**: Added warning about simpler search terms
+  - Open-Meteo API works better with just city names (e.g., "Mullion" vs "Mullion, Cornwall")
+  - Added example showing fallback pattern when complex queries return no results
 
 ### Fixed
 - Removed `uv.lock` from `.gitignore` to fix CI/CD cache dependency resolution
+- Improved `geocode_location` guidance to prevent "no results" issues with qualified location names
 
 ## [1.1.0] - 2024-11-22
 
