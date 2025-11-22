@@ -8,7 +8,9 @@
 
 ## Features
 
-This MCP server provides comprehensive access to Open-Meteo's weather APIs through five powerful tools:
+This MCP server provides comprehensive access to Open-Meteo's weather APIs through six powerful tools.
+
+**All tools return fully-typed Pydantic v2 models** for type safety, validation, and excellent IDE support. Every model includes rich, LLM-friendly field descriptions with interpretation guides for better AI understanding.
 
 ### 1. Weather Forecast (`get_weather_forecast`)
 Get detailed weather forecasts with customizable parameters:
@@ -50,36 +52,52 @@ Get marine weather conditions:
 - Ocean current velocity and direction
 - Up to 16-day forecasts
 - Essential for maritime activities
+- Field descriptions include wave quality interpretations (0-0.5m calm, 1.5-2.5m moderate, etc.)
+
+### 6. Weather Code Interpretation (`interpret_weather_code`)
+Translate numeric weather codes to descriptions:
+- Converts WMO weather codes (0-99) to human-readable text
+- Includes severity categories (clear, rain, snow, thunderstorm, etc.)
+- Helps LLMs explain weather conditions in natural language
+- Built-in reference for all standard weather codes
 
 ## Installation
 
-### From PyPI
+### Using uvx (Recommended - No Installation Required!)
+
+The easiest way to use the server is with `uvx`, which runs it without installing:
 
 ```bash
-pip install chuk-mcp-open-meteo
+uvx chuk-mcp-open-meteo
 ```
 
-### From Source
+This automatically downloads and runs the latest version. Perfect for Claude Desktop!
+
+### Using uv (Recommended for Development)
 
 ```bash
-git clone https://github.com/chrishayuk/chuk-mcp-open-meteo.git
-cd chuk-mcp-open-meteo
-pip install -e .
-```
+# Install from PyPI
+uv pip install chuk-mcp-open-meteo
 
-### Using uv (recommended for development)
-
-```bash
+# Or clone and install from source
 git clone https://github.com/chrishayuk/chuk-mcp-open-meteo.git
 cd chuk-mcp-open-meteo
 uv sync --dev
+```
+
+### Using pip (Traditional)
+
+```bash
+pip install chuk-mcp-open-meteo
 ```
 
 ## Usage
 
 ### With Claude Desktop
 
-Add this configuration to your Claude Desktop config file:
+#### Option 1: Use the Public Server (Easiest)
+
+Connect to the hosted public server at `weather.chukai.io`:
 
 **MacOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
 **Windows**: `%APPDATA%/Claude/claude_desktop_config.json`
@@ -87,14 +105,14 @@ Add this configuration to your Claude Desktop config file:
 ```json
 {
   "mcpServers": {
-    "open-meteo": {
-      "command": "chuk-mcp-open-meteo"
+    "weather": {
+      "url": "https://weather.chukai.io/mcp"
     }
   }
 }
 ```
 
-Or with uv:
+#### Option 2: Run Locally with uvx
 
 ```json
 {
@@ -107,26 +125,44 @@ Or with uv:
 }
 ```
 
+#### Option 3: Run Locally with pip
+
+```json
+{
+  "mcpServers": {
+    "open-meteo": {
+      "command": "chuk-mcp-open-meteo"
+    }
+  }
+}
+```
+
 ### Standalone
 
 Run the server directly:
 
 ```bash
-# STDIO mode (default, for MCP clients)
-chuk-mcp-open-meteo
+# With uvx (recommended - always latest version)
+uvx chuk-mcp-open-meteo
 
-# HTTP mode (for web access)
+# With uvx in HTTP mode
+uvx chuk-mcp-open-meteo http
+
+# Or if installed locally
+chuk-mcp-open-meteo
 chuk-mcp-open-meteo http
 ```
 
-Or with Python:
+Or with uv/Python:
 
 ```bash
-# STDIO mode (default)
-python -m chuk_mcp_open_meteo.server
+# STDIO mode (default, for MCP clients)
+uv run chuk-mcp-open-meteo
+# or: python -m chuk_mcp_open_meteo.server
 
-# HTTP mode
-python -m chuk_mcp_open_meteo.server http
+# HTTP mode (for web access)
+uv run chuk-mcp-open-meteo http
+# or: python -m chuk_mcp_open_meteo.server http
 ```
 
 **STDIO mode** is for MCP clients like Claude Desktop and mcp-cli.
@@ -148,16 +184,17 @@ Once configured, you can ask Claude questions like:
 Check out the `examples/` directory for runnable Python examples:
 
 ```bash
-# Basic usage of all tools
+# With uv (recommended)
+uv run python examples/example_basic.py
+uv run python examples/example_trip_planner.py
+uv run python examples/test_mcp_protocol.py
+
+# Or with plain python (if installed)
 python examples/example_basic.py
-
-# Advanced trip planning with multiple tools
 python examples/example_trip_planner.py
-
-# Test MCP protocol compliance
 python examples/test_mcp_protocol.py
 
-# Run all tests
+# Run all examples
 ./examples/test_all.sh
 ```
 
@@ -165,8 +202,23 @@ See [examples/README.md](examples/README.md) for detailed documentation.
 
 ## Tool Reference
 
+All tools return **Pydantic v2 models** with full type safety. When calling from Python, you get clean object access:
+
+```python
+from chuk_mcp_open_meteo.server import get_weather_forecast
+
+# Get weather forecast
+forecast = await get_weather_forecast(latitude=51.5072, longitude=-0.1276, current_weather=True)
+
+# Access data via typed attributes (not dictionaries!)
+if forecast.current_weather:
+    temp = forecast.current_weather.temperature  # Type-safe access
+    wind = forecast.current_weather.windspeed
+```
+
 ### get_weather_forecast
 
+Parameters:
 ```python
 {
   "latitude": 51.5072,
@@ -182,12 +234,15 @@ See [examples/README.md](examples/README.md) for detailed documentation.
 }
 ```
 
+Returns: `WeatherForecast` Pydantic model
+
 **Popular hourly variables**: `temperature_2m`, `relative_humidity_2m`, `precipitation`, `rain`, `snowfall`, `cloud_cover`, `wind_speed_10m`, `wind_direction_10m`, `pressure_msl`, `visibility`
 
 **Popular daily variables**: `temperature_2m_max`, `temperature_2m_min`, `precipitation_sum`, `rain_sum`, `sunrise`, `sunset`, `wind_speed_10m_max`
 
 ### geocode_location
 
+Parameters:
 ```python
 {
   "name": "London",
@@ -196,8 +251,11 @@ See [examples/README.md](examples/README.md) for detailed documentation.
 }
 ```
 
+Returns: `GeocodingResponse` Pydantic model
+
 ### get_historical_weather
 
+Parameters:
 ```python
 {
   "latitude": 40.7128,
@@ -209,8 +267,11 @@ See [examples/README.md](examples/README.md) for detailed documentation.
 }
 ```
 
+Returns: `HistoricalWeather` Pydantic model
+
 ### get_air_quality
 
+Parameters:
 ```python
 {
   "latitude": 34.0522,
@@ -219,8 +280,11 @@ See [examples/README.md](examples/README.md) for detailed documentation.
 }
 ```
 
+Returns: `AirQualityResponse` Pydantic model
+
 ### get_marine_forecast
 
+Parameters:
 ```python
 {
   "latitude": 21.3099,
@@ -228,6 +292,8 @@ See [examples/README.md](examples/README.md) for detailed documentation.
   "hourly": "wave_height,wave_direction,wave_period"
 }
 ```
+
+Returns: `MarineForecast` Pydantic model
 
 ## Development
 
@@ -315,8 +381,37 @@ Built on top of [chuk-mcp-server](https://github.com/chrishayuk/chuk-mcp-server)
 
 - **Fast & Simple**: Decorator-based tool definitions
 - **Type-Safe**: Automatic JSON-RPC schema generation from Python type hints
+- **Pydantic Native**: All responses use Pydantic v2 models for validation and type safety
+- **LLM-Optimized**: Rich field descriptions with interpretation guides embedded in models
+  - Wave heights include size categories (calm/small/moderate/large/dangerous)
+  - Wave periods include quality ratings (choppy/good/excellent)
+  - Weather codes include quick reference in field descriptions
+  - Direction fields explain meteorological conventions
+  - All measurements include context and safety thresholds
 - **Async**: Native async/await support for optimal performance
 - **Production-Ready**: Sub-3ms latency, 36,000+ RPS capability
+- **99% Test Coverage**: Comprehensive test suite ensures reliability
+
+## Public Server
+
+A public instance is hosted at **weather.chukai.io** for easy access:
+
+- **URL**: `https://weather.chukai.io/mcp`
+- **Protocol**: MCP over HTTPS
+- **Free to use**: No API key required
+- **Always up-to-date**: Running the latest version
+
+Simply add it to your Claude Desktop config:
+
+```json
+{
+  "mcpServers": {
+    "weather": {
+      "url": "https://weather.chukai.io/mcp"
+    }
+  }
+}
+```
 
 ## Contributing
 

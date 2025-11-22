@@ -11,47 +11,102 @@ from pydantic import BaseModel, ConfigDict, Field
 
 # Weather Forecast Models
 class CurrentWeather(BaseModel):
-    """Current weather conditions."""
+    """Current weather conditions snapshot.
 
-    temperature: float = Field(..., description="Temperature in specified unit")
-    windspeed: float = Field(..., description="Wind speed in specified unit")
-    winddirection: float = Field(..., description="Wind direction in degrees")
-    weathercode: int = Field(..., description="WMO weather code")
-    time: str = Field(..., description="ISO 8601 timestamp")
+    Use weathercode with interpret_weather_code tool for human-readable description.
+    """
+
+    temperature: float = Field(
+        ..., description="Current temperature in requested unit (celsius or fahrenheit)"
+    )
+    windspeed: float = Field(
+        ..., description="Current wind speed in requested unit (km/h, m/s, mph, or knots)"
+    )
+    winddirection: float = Field(
+        ...,
+        description="Wind direction in degrees (0-360, meteorological: 0=from North, 90=from East, "
+        "180=from South, 270=from West)",
+    )
+    weathercode: int = Field(
+        ...,
+        description="WMO weather code (0-99). Use interpret_weather_code tool to get description. "
+        "Common: 0=clear, 1-3=cloudy, 45/48=fog, 51-67=rain/drizzle, 71-77=snow, 95-99=thunderstorm",
+    )
+    time: str = Field(..., description="ISO 8601 timestamp of current conditions")
 
 
 class HourlyWeather(BaseModel):
-    """Hourly weather forecast data."""
+    """Hourly weather forecast data with 50+ available variables.
+
+    All lists are parallel arrays - use the same index across all fields for a specific hour.
+    Example: temperature_2m[0] is the temperature for time[0].
+    """
 
     model_config = ConfigDict(extra="allow")  # Allow additional fields from API
 
-    time: list[str] = Field(..., description="ISO 8601 timestamps")
-    temperature_2m: Optional[list[float]] = Field(None, description="Temperature at 2m height")
-    relative_humidity_2m: Optional[list[float]] = Field(None, description="Relative humidity")
-    precipitation: Optional[list[float]] = Field(None, description="Total precipitation")
-    rain: Optional[list[float]] = Field(None, description="Rain")
-    showers: Optional[list[float]] = Field(None, description="Showers")
-    snowfall: Optional[list[float]] = Field(None, description="Snowfall")
-    cloud_cover: Optional[list[float]] = Field(None, description="Cloud cover percentage")
-    wind_speed_10m: Optional[list[float]] = Field(None, description="Wind speed at 10m")
-    wind_direction_10m: Optional[list[float]] = Field(None, description="Wind direction")
-    pressure_msl: Optional[list[float]] = Field(None, description="Pressure at sea level")
+    time: list[str] = Field(..., description="ISO 8601 timestamps for each hour")
+    temperature_2m: Optional[list[float]] = Field(
+        None, description="Temperature at 2 meters height in requested unit"
+    )
+    relative_humidity_2m: Optional[list[float]] = Field(
+        None, description="Relative humidity at 2 meters (0-100%)"
+    )
+    precipitation: Optional[list[float]] = Field(
+        None,
+        description="Total precipitation (rain + snow + showers) in requested unit (mm or inch). "
+        "0=no precipitation",
+    )
+    rain: Optional[list[float]] = Field(
+        None, description="Rain amount only (excluding snow/showers)"
+    )
+    showers: Optional[list[float]] = Field(None, description="Shower precipitation amount")
+    snowfall: Optional[list[float]] = Field(None, description="Snowfall amount in cm or inch")
+    cloud_cover: Optional[list[float]] = Field(
+        None, description="Total cloud cover percentage (0-100%). 0=clear, 100=overcast"
+    )
+    wind_speed_10m: Optional[list[float]] = Field(
+        None, description="Wind speed at 10 meters height in requested unit"
+    )
+    wind_direction_10m: Optional[list[float]] = Field(
+        None,
+        description="Wind direction at 10m in degrees (0-360, from North=0, East=90, South=180, West=270)",
+    )
+    pressure_msl: Optional[list[float]] = Field(
+        None, description="Atmospheric pressure at sea level in hPa"
+    )
 
 
 class DailyWeather(BaseModel):
-    """Daily weather forecast data."""
+    """Daily weather forecast summary data.
+
+    Provides daily aggregates - high/low temps, totals, and key times.
+    All lists are parallel arrays indexed by day.
+    """
 
     model_config = ConfigDict(extra="allow")  # Allow additional fields from API
 
-    time: list[str] = Field(..., description="ISO 8601 dates")
-    temperature_2m_max: Optional[list[float]] = Field(None, description="Maximum temperature")
-    temperature_2m_min: Optional[list[float]] = Field(None, description="Minimum temperature")
-    precipitation_sum: Optional[list[float]] = Field(None, description="Total precipitation")
-    precipitation_hours: Optional[list[float]] = Field(None, description="Hours of precipitation")
-    rain_sum: Optional[list[float]] = Field(None, description="Total rain")
-    sunrise: Optional[list[str]] = Field(None, description="Sunrise time")
-    sunset: Optional[list[str]] = Field(None, description="Sunset time")
-    wind_speed_10m_max: Optional[list[float]] = Field(None, description="Maximum wind speed")
+    time: list[str] = Field(..., description="ISO 8601 dates (YYYY-MM-DD format)")
+    temperature_2m_max: Optional[list[float]] = Field(
+        None, description="Maximum (high) temperature for the day in requested unit"
+    )
+    temperature_2m_min: Optional[list[float]] = Field(
+        None, description="Minimum (low) temperature for the day in requested unit"
+    )
+    precipitation_sum: Optional[list[float]] = Field(
+        None,
+        description="Total precipitation for the day (rain + snow) in requested unit (mm or inch)",
+    )
+    precipitation_hours: Optional[list[float]] = Field(
+        None, description="Number of hours with precipitation during the day (0-24)"
+    )
+    rain_sum: Optional[list[float]] = Field(
+        None, description="Total rain for the day (excluding snow)"
+    )
+    sunrise: Optional[list[str]] = Field(None, description="Sunrise time in ISO 8601 format")
+    sunset: Optional[list[str]] = Field(None, description="Sunset time in ISO 8601 format")
+    wind_speed_10m_max: Optional[list[float]] = Field(
+        None, description="Maximum wind speed during the day in requested unit"
+    )
 
 
 class WeatherForecast(BaseModel):
@@ -140,41 +195,82 @@ class AirQualityResponse(BaseModel):
 
 # Marine Forecast Models
 class HourlyMarine(BaseModel):
-    """Hourly marine forecast data."""
+    """Hourly marine forecast data with wave, swell, and current information.
+
+    Wave heights are in meters. For context:
+    - 0-0.5m: Calm (safe swimming)
+    - 0.5-1.5m: Small (beginner surfing)
+    - 1.5-2.5m: Moderate (intermediate surfing)
+    - 2.5-4m: Large (advanced surfing)
+    - 4m+: Very large (dangerous)
+
+    Wave period in seconds indicates quality:
+    - <8s: Short/choppy (wind waves)
+    - 8-12s: Medium (good surf)
+    - 12s+: Long (excellent surf/swell)
+    """
 
     model_config = ConfigDict(extra="allow")
 
-    time: list[str] = Field(..., description="ISO 8601 timestamps")
+    time: list[str] = Field(..., description="ISO 8601 timestamps for each hour")
+
+    # Total wave characteristics (combined wind + swell)
     wave_height: Optional[list[Optional[float]]] = Field(
-        None, description="Significant wave height in meters"
+        None,
+        description="Total significant wave height in meters (combined wind waves + swell). "
+        "This is the primary metric for wave size. 0-0.5m=calm, 0.5-1.5m=small, "
+        "1.5-2.5m=moderate, 2.5-4m=large, 4m+=very large/dangerous",
     )
     wave_direction: Optional[list[Optional[float]]] = Field(
-        None, description="Wave direction in degrees"
+        None,
+        description="Wave direction in degrees (0-360, meteorological convention: 0=from North, "
+        "90=from East, 180=from South, 270=from West)",
     )
-    wave_period: Optional[list[Optional[float]]] = Field(None, description="Wave period in seconds")
+    wave_period: Optional[list[Optional[float]]] = Field(
+        None,
+        description="Wave period in seconds (time between wave crests). Higher is better for surfing: "
+        "<8s=choppy, 8-12s=good, 12s+=excellent",
+    )
+
+    # Wind waves (locally generated by current wind)
     wind_wave_height: Optional[list[Optional[float]]] = Field(
-        None, description="Wind wave height in meters"
+        None,
+        description="Wind wave height in meters (waves generated by local wind, typically choppy). "
+        "These are less organized than swell",
     )
     wind_wave_direction: Optional[list[Optional[float]]] = Field(
-        None, description="Wind wave direction in degrees"
+        None, description="Wind wave direction in degrees (0-360, meteorological convention)"
     )
     wind_wave_period: Optional[list[Optional[float]]] = Field(
-        None, description="Wind wave period in seconds"
+        None,
+        description="Wind wave period in seconds (usually shorter/choppier than swell)",
     )
+
+    # Swell waves (from distant storms, more organized)
     swell_wave_height: Optional[list[Optional[float]]] = Field(
-        None, description="Swell wave height in meters"
+        None,
+        description="Swell wave height in meters (waves from distant storms, clean and organized). "
+        "These create the best surfing conditions",
     )
     swell_wave_direction: Optional[list[Optional[float]]] = Field(
-        None, description="Swell wave direction in degrees"
+        None,
+        description="Swell wave direction in degrees (0-360, direction swell is coming FROM)",
     )
     swell_wave_period: Optional[list[Optional[float]]] = Field(
-        None, description="Swell wave period in seconds"
+        None,
+        description="Swell wave period in seconds (typically longer than wind waves, 10-20s indicates "
+        "quality swell from distant storms)",
     )
+
+    # Ocean currents
     ocean_current_velocity: Optional[list[Optional[float]]] = Field(
-        None, description="Ocean current velocity in m/s"
+        None,
+        description="Ocean current speed in meters/second. Important for safety: >1 m/s is strong, "
+        ">2 m/s is dangerous for swimming",
     )
     ocean_current_direction: Optional[list[Optional[float]]] = Field(
-        None, description="Ocean current direction in degrees"
+        None,
+        description="Ocean current direction in degrees (0-360, direction current is flowing TOWARDS)",
     )
 
 
@@ -204,3 +300,15 @@ class MarineForecast(BaseModel):
     timezone: Optional[str] = Field(None, description="Timezone name")
     hourly: Optional[HourlyMarine] = Field(None, description="Hourly marine forecast")
     daily: Optional[DailyMarine] = Field(None, description="Daily marine forecast")
+
+
+# Weather Code Interpretation
+class WeatherCodeInterpretation(BaseModel):
+    """Interpretation of WMO weather code."""
+
+    code: int = Field(..., description="WMO weather code number (0-99)")
+    description: str = Field(..., description="Human-readable weather condition description")
+    severity: str = Field(
+        ...,
+        description="Weather severity category: clear, cloudy, fog, drizzle, rain, freezing, snow, showers, thunderstorm, unknown",
+    )

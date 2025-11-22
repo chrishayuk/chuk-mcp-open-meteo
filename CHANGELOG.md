@@ -7,10 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **New Tool**: `interpret_weather_code` - Translate WMO weather codes into human-readable descriptions
+  - Returns Pydantic `WeatherCodeInterpretation` model
+  - Comprehensive documentation of all weather codes (0-99)
+  - Includes severity categories for better LLM understanding
+- **Enhanced Documentation**: Massively improved docstrings for all tools
+  - Added "Tips for LLMs" sections with guidance on tool usage
+  - Detailed parameter descriptions with examples
+  - Common use cases and best practices
+  - Weather code reference in forecast tool
+  - Wave height and period interpretation guides for marine forecast
+  - Activity recommendations based on conditions
+- **Enhanced Pydantic Models**: All field descriptions now include LLM-friendly context
+  - `HourlyMarine`: Wave height ranges (0-0.5m=calm, 0.5-1.5m=small, etc.)
+  - `HourlyMarine`: Wave period quality indicators (<8s=choppy, 8-12s=good, 12s+=excellent)
+  - `CurrentWeather`: Wind direction explanations (0=from North, 90=from East, etc.)
+  - `CurrentWeather`: Weather code quick reference in field description
+  - `HourlyWeather`: Clarified precipitation types and units
+  - `DailyWeather`: Added descriptions for daily aggregates
+  - All direction fields now explain meteorological convention
+  - All models include docstrings with usage guidance
+
 ### Changed
 - Updated Pydantic models to use ConfigDict instead of deprecated class-based Config
 - Improved test coverage to 99% (all files >90%)
 - Added comprehensive tests for all API parameters and edge cases
+- Enhanced all tool docstrings with LLM-friendly guidance
+- Added comprehensive weather code database (WMO codes 0-99)
+
+### Fixed
+- Removed `uv.lock` from `.gitignore` to fix CI/CD cache dependency resolution
 
 ## [1.1.0] - 2024-11-22
 

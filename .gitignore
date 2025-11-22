@@ -135,7 +135,6 @@ Thumbs.db
 
 # UV
 .uv/
-uv.lock
 
 # ai
 .claude/

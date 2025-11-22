@@ -22,6 +22,7 @@ from .models import (
     GeocodingResponse,
     HistoricalWeather,
     MarineForecast,
+    WeatherCodeInterpretation,
     WeatherForecast,
 )
 
@@ -40,6 +41,38 @@ HISTORICAL_API = "https://archive-api.open-meteo.com/v1/archive"
 AIR_QUALITY_API = "https://air-quality-api.open-meteo.com/v1/air-quality"
 MARINE_API = "https://marine-api.open-meteo.com/v1/marine"
 
+# WMO Weather Interpretation Codes (used by Open-Meteo)
+WEATHER_CODES = {
+    0: {"description": "Clear sky", "severity": "clear"},
+    1: {"description": "Mainly clear", "severity": "clear"},
+    2: {"description": "Partly cloudy", "severity": "cloudy"},
+    3: {"description": "Overcast", "severity": "cloudy"},
+    45: {"description": "Fog", "severity": "fog"},
+    48: {"description": "Depositing rime fog", "severity": "fog"},
+    51: {"description": "Light drizzle", "severity": "drizzle"},
+    53: {"description": "Moderate drizzle", "severity": "drizzle"},
+    55: {"description": "Dense drizzle", "severity": "drizzle"},
+    56: {"description": "Light freezing drizzle", "severity": "freezing"},
+    57: {"description": "Dense freezing drizzle", "severity": "freezing"},
+    61: {"description": "Slight rain", "severity": "rain"},
+    63: {"description": "Moderate rain", "severity": "rain"},
+    65: {"description": "Heavy rain", "severity": "rain"},
+    66: {"description": "Light freezing rain", "severity": "freezing"},
+    67: {"description": "Heavy freezing rain", "severity": "freezing"},
+    71: {"description": "Slight snow fall", "severity": "snow"},
+    73: {"description": "Moderate snow fall", "severity": "snow"},
+    75: {"description": "Heavy snow fall", "severity": "snow"},
+    77: {"description": "Snow grains", "severity": "snow"},
+    80: {"description": "Slight rain showers", "severity": "showers"},
+    81: {"description": "Moderate rain showers", "severity": "showers"},
+    82: {"description": "Violent rain showers", "severity": "showers"},
+    85: {"description": "Slight snow showers", "severity": "snow"},
+    86: {"description": "Heavy snow showers", "severity": "snow"},
+    95: {"description": "Thunderstorm", "severity": "thunderstorm"},
+    96: {"description": "Thunderstorm with slight hail", "severity": "thunderstorm"},
+    99: {"description": "Thunderstorm with heavy hail", "severity": "thunderstorm"},
+}
+
 
 @tool
 async def get_weather_forecast(
@@ -54,26 +87,65 @@ async def get_weather_forecast(
     hourly: Optional[str] = None,
     daily: Optional[str] = None,
 ) -> WeatherForecast:
-    """Get comprehensive weather forecast from Open-Meteo API.
+    """Get comprehensive weather forecast with current conditions, hourly, and daily forecasts.
+
+    This tool provides detailed weather forecasts from Open-Meteo API with 50+ weather variables.
+    Use this for answering questions about current weather, future forecasts, or detailed conditions.
 
     Args:
-        latitude: Latitude coordinate (-90 to 90)
-        longitude: Longitude coordinate (-180 to 180)
-        temperature_unit: Temperature unit - celsius, fahrenheit
-        wind_speed_unit: Wind speed unit - kmh, ms, mph, kn
-        precipitation_unit: Precipitation unit - mm, inch
-        timezone: Timezone (e.g., 'America/New_York', 'auto' for automatic)
-        forecast_days: Number of forecast days (1-16)
-        current_weather: Include current weather conditions
-        hourly: Comma-separated hourly variables (e.g., 'temperature_2m,precipitation')
-        daily: Comma-separated daily variables (e.g., 'temperature_2m_max,precipitation_sum')
+        latitude: Latitude coordinate in decimal degrees (-90 to 90). Use geocode_location to find coordinates.
+        longitude: Longitude coordinate in decimal degrees (-180 to 180). Use geocode_location to find coordinates.
+        temperature_unit: Temperature unit. Options: "celsius" (default), "fahrenheit"
+        wind_speed_unit: Wind speed unit. Options: "kmh" (default), "ms", "mph", "kn"
+        precipitation_unit: Precipitation unit. Options: "mm" (default), "inch"
+        timezone: Timezone name (e.g., "America/New_York", "Europe/London") or "auto" for automatic detection
+        forecast_days: Number of forecast days (1-16). Default is 7.
+        current_weather: Set to True to include current weather conditions (recommended)
+        hourly: Comma-separated list of hourly variables. Popular options:
+            - temperature_2m: Temperature at 2m height
+            - precipitation: Total precipitation (rain + snow)
+            - rain: Rain only
+            - snowfall: Snowfall amount
+            - cloud_cover: Cloud cover percentage (0-100)
+            - wind_speed_10m, wind_direction_10m: Wind at 10m height
+            - relative_humidity_2m: Relative humidity
+            - pressure_msl: Sea level pressure
+            - visibility: Visibility distance
+            - uv_index: UV index
+        daily: Comma-separated list of daily variables. Popular options:
+            - temperature_2m_max, temperature_2m_min: Daily temperature range
+            - precipitation_sum: Total daily precipitation
+            - rain_sum: Total daily rain
+            - sunrise, sunset: Sun times
+            - wind_speed_10m_max: Maximum daily wind speed
+            - precipitation_hours: Hours with precipitation
 
     Returns:
-        WeatherForecast: Pydantic model with forecast data
+        WeatherForecast: A Pydantic model containing:
+            - latitude, longitude: Actual coordinates used
+            - current_weather: Current conditions (temperature, wind, weather code)
+            - hourly: Hourly forecast data (if requested)
+            - daily: Daily forecast data (if requested)
+            - timezone: Timezone information
+
+    Tips for LLMs:
+        - Always use current_weather=True for "what's the weather" questions
+        - Request hourly data for detailed forecasts (e.g., "hourly rain predictions")
+        - Request daily data for multi-day forecasts (e.g., "week ahead")
+        - Weather codes: 0=clear, 1-3=partly cloudy, 45/48=fog, 51-57=drizzle, 61-67=rain, 71-77=snow, 80-82=rain showers, 95-99=thunderstorm
 
     Example:
+        # Get current weather for London
         forecast = await get_weather_forecast(51.5072, -0.1276, current_weather=True)
-        print(f"Temperature: {forecast.current_weather.temperature}°C")
+        temp = forecast.current_weather.temperature
+
+        # Get detailed 3-day forecast with hourly data
+        forecast = await get_weather_forecast(
+            51.5072, -0.1276,
+            forecast_days=3,
+            hourly="temperature_2m,precipitation,wind_speed_10m",
+            daily="temperature_2m_max,temperature_2m_min,precipitation_sum"
+        )
     """
     params = {
         "latitude": latitude,
@@ -109,21 +181,59 @@ async def geocode_location(
     language: str = "en",
     format: str = "json",
 ) -> GeocodingResponse:
-    """Search for locations and get their coordinates using Open-Meteo Geocoding API.
+    """Convert location names to coordinates and get detailed geographic information.
+
+    Use this tool FIRST before calling weather tools to get accurate coordinates for any location.
+    Searches worldwide database of cities, towns, and places with comprehensive metadata.
 
     Args:
-        name: Location name to search for (e.g., 'London', 'New York')
-        count: Number of results to return (1-100)
-        language: Language code for results (en, de, fr, es, etc.)
-        format: Response format (json)
+        name: Location name to search for. Can be:
+            - City name: "London", "Tokyo", "New York"
+            - City with country: "Paris, France", "Portland, Oregon"
+            - Region or landmark: "Cornwall", "Lake Tahoe"
+            - Address or place: "Times Square", "Big Ben"
+        count: Maximum number of results to return (1-100). Default is 10.
+            Use 1 if you're confident about the location (e.g., "London, UK")
+            Use 5-10 for ambiguous names (e.g., "Paris" - could be France, Texas, etc.)
+        language: Language code for result names. Options: "en" (English, default), "de" (German),
+            "fr" (French), "es" (Spanish), "it" (Italian), "pt" (Portuguese), etc.
+        format: Response format. Always use "json" (default).
 
     Returns:
-        GeocodingResponse: Pydantic model with location results
+        GeocodingResponse: A Pydantic model containing:
+            - results: List of matching locations, each with:
+                - name: Location name
+                - latitude, longitude: Coordinates (use these for weather tools!)
+                - country, country_code: Country information
+                - timezone: IANA timezone (e.g., "Europe/London")
+                - elevation: Meters above sea level
+                - population: Population (if available)
+                - admin1, admin2: Administrative divisions (state, county, etc.)
+                - feature_code: Type of place (PPLC=capital, PPL=populated place, etc.)
+
+    Tips for LLMs:
+        - ALWAYS geocode location names before requesting weather data
+        - Results are sorted by relevance (population, importance)
+        - First result is usually what users mean for well-known cities
+        - For ambiguous names, check country/admin divisions to pick the right one
+        - Use the exact latitude/longitude from results in weather API calls
+        - Timezone from geocoding can be passed to weather APIs for local time
+        - If no results: name might be misspelled, too specific, or not in database
 
     Example:
-        locations = await geocode_location("Paris", count=3)
-        for loc in locations.results:
-            print(f"{loc.name}, {loc.country}: {loc.latitude}, {loc.longitude}")
+        # Find London coordinates
+        locations = await geocode_location("London", count=1)
+        london = locations.results[0]
+        # Use coordinates for weather: london.latitude, london.longitude
+
+        # Handle ambiguous names
+        locations = await geocode_location("Paris", count=5)
+        # results[0] = Paris, France (population 2.1M)
+        # results[1] = Paris, Texas (population 25K)
+        # Pick based on context or ask user
+
+        # Search with country for precision
+        locations = await geocode_location("Portland, Oregon", count=1)
     """
     params = {
         "name": name,
@@ -261,24 +371,102 @@ async def get_marine_forecast(
     daily: Optional[str] = None,
     forecast_days: int = 7,
 ) -> MarineForecast:
-    """Get marine weather forecast from Open-Meteo Marine API.
+    """Get ocean and marine weather forecasts including waves, swell, currents, and tides.
+
+    Use this for maritime activities, surfing, sailing, fishing, or beach conditions.
+    Provides detailed wave forecasts from multiple global ocean models.
 
     Args:
-        latitude: Latitude coordinate (-90 to 90)
-        longitude: Longitude coordinate (-180 to 180)
-        timezone: Timezone (e.g., 'America/New_York', 'auto' for automatic)
-        hourly: Comma-separated marine variables
-        daily: Comma-separated daily marine variables
-        forecast_days: Number of forecast days (1-16)
+        latitude: Latitude coordinate in decimal degrees (-90 to 90). Must be over ocean/coastal areas.
+            Use geocode_location to find coordinates for coastal cities and beaches.
+        longitude: Longitude coordinate in decimal degrees (-180 to 180). Must be over ocean/coastal areas.
+        timezone: Timezone name (e.g., "Pacific/Auckland", "Europe/London") or "auto" for automatic
+        hourly: Comma-separated list of hourly marine variables. Popular options:
+            Wave characteristics (total):
+            - wave_height: Significant wave height in meters (combined wind + swell)
+            - wave_direction: Wave direction in degrees (0-360, meteorological convention)
+            - wave_period: Wave period in seconds
+
+            Wind waves (locally generated):
+            - wind_wave_height: Wind wave height in meters
+            - wind_wave_direction: Wind wave direction in degrees
+            - wind_wave_period: Wind wave period in seconds
+            - wind_wave_peak_period: Peak period of wind waves
+
+            Swell waves (distant storms):
+            - swell_wave_height: Swell wave height in meters
+            - swell_wave_direction: Swell wave direction in degrees
+            - swell_wave_period: Swell wave period in seconds
+            - swell_wave_peak_period: Peak period of swell
+
+            Ocean currents:
+            - ocean_current_velocity: Current speed in m/s
+            - ocean_current_direction: Current direction in degrees
+
+            Other useful variables:
+            - sea_surface_temperature: Water temperature in °C
+
+            NOTE: Do NOT include regular weather variables like 'wind_speed', 'temperature',
+            'precipitation' - those come from get_weather_forecast, not marine API!
+
+        daily: Comma-separated list of daily marine variables. Options:
+            - wave_height_max: Maximum wave height for the day
+            - wave_direction_dominant: Dominant wave direction
+            - wave_period_max: Maximum wave period
+        forecast_days: Number of forecast days (1-16). Default is 7.
 
     Returns:
-        MarineForecast: Pydantic model with marine forecast data
+        MarineForecast: A Pydantic model containing:
+            - latitude, longitude: Actual coordinates used (may be adjusted to nearest ocean grid point)
+            - hourly: Hourly marine forecast data (wave heights, directions, periods, currents)
+            - daily: Daily marine forecast data (if requested)
+            - timezone: Timezone information
+
+    Tips for LLMs:
+        - Use this for surfing, sailing, boating, fishing, beach safety questions
+        - wave_height is the key metric - measured in meters:
+            * 0-0.5m: Calm, good for swimming
+            * 0.5-1.5m: Small waves, beginner surfing
+            * 1.5-2.5m: Moderate waves, intermediate surfing
+            * 2.5-4m: Large waves, advanced surfing
+            * 4m+: Very large, dangerous for most activities
+        - wave_period (seconds) indicates wave quality for surfing:
+            * <8s: Short period, choppy (wind waves)
+            * 8-12s: Medium period, good surf
+            * 12s+: Long period, excellent surf (swell)
+        - Combine with get_weather_forecast for complete marine conditions (wind, visibility, storms)
+        - For surfing: need wave_height (size), wave_period (quality), and local wind (from weather forecast)
+        - swell_wave data shows waves from distant storms (clean, organized)
+        - wind_wave data shows local wind-generated waves (choppy if strong winds)
+        - ocean_current data important for safety and navigation
+
+    Common use cases:
+        - Surfing: Check wave_height, wave_period, swell_wave_height
+        - Swimming safety: Check wave_height (stay <1m for safety)
+        - Sailing/boating: Check wave_height, wave_period, ocean_current_velocity
+        - Fishing: Check ocean_current and sea_surface_temperature
+        - Beach conditions: Check wave_height and combine with weather forecast (wind, rain)
 
     Example:
-        marine = await get_marine_forecast(21.3099, -157.8581)
-        if marine.hourly and marine.hourly.wave_height:
-            height = marine.hourly.wave_height[0]
-            print(f"Wave height: {height}m")
+        # Get surf conditions for Hawaii
+        marine = await get_marine_forecast(
+            21.3099, -157.8581,  # Honolulu coordinates
+            hourly="wave_height,wave_period,swell_wave_height,swell_wave_direction",
+            forecast_days=3
+        )
+        current_wave_height = marine.hourly.wave_height[0]
+        current_period = marine.hourly.wave_period[0]
+
+        # Check if good for surfing
+        if 1.5 <= current_wave_height <= 3.0 and current_period >= 10:
+            print("Good surf conditions!")
+
+        # Get daily max waves for trip planning
+        marine = await get_marine_forecast(
+            lat, lon,
+            daily="wave_height_max,wave_direction_dominant",
+            forecast_days=7
+        )
     """
     params = {
         "latitude": latitude,
@@ -304,6 +492,93 @@ async def get_marine_forecast(
         data = response.json()
 
     return MarineForecast(**data)
+
+
+@tool
+async def interpret_weather_code(weather_code: int) -> WeatherCodeInterpretation:
+    """Interpret WMO weather codes used by Open-Meteo API.
+
+    Weather codes are numerical values (0-99) that represent different weather conditions.
+    This tool translates codes into human-readable descriptions.
+
+    Args:
+        weather_code: WMO weather code integer (0-99) from weather forecast data.
+            This is the 'weathercode' field in current_weather or hourly/daily data.
+
+    Returns:
+        WeatherCodeInterpretation: Pydantic model with:
+            - code: The weather code number
+            - description: Human-readable weather condition
+            - severity: Category (clear, cloudy, fog, drizzle, rain, freezing, snow, showers, thunderstorm)
+
+    Common Weather Codes:
+        Clear/Cloudy (0-3):
+            0 = Clear sky
+            1 = Mainly clear
+            2 = Partly cloudy
+            3 = Overcast
+
+        Fog (45-48):
+            45 = Fog
+            48 = Depositing rime fog
+
+        Drizzle (51-57):
+            51 = Light drizzle
+            53 = Moderate drizzle
+            55 = Dense drizzle
+            56-57 = Freezing drizzle
+
+        Rain (61-67):
+            61 = Slight rain
+            63 = Moderate rain
+            65 = Heavy rain
+            66-67 = Freezing rain
+
+        Snow (71-77, 85-86):
+            71 = Slight snow
+            73 = Moderate snow
+            75 = Heavy snow
+            77 = Snow grains
+            85-86 = Snow showers
+
+        Showers (80-82):
+            80 = Slight rain showers
+            81 = Moderate rain showers
+            82 = Violent rain showers
+
+        Thunderstorm (95-99):
+            95 = Thunderstorm
+            96 = Thunderstorm with slight hail
+            99 = Thunderstorm with heavy hail
+
+    Tips for LLMs:
+        - Use this to explain weather conditions to users in natural language
+        - Severity helps determine appropriate activity recommendations
+        - Codes 0-3: Generally safe outdoor conditions
+        - Codes 51-65: Wet conditions, bring umbrella
+        - Codes 71-77: Snow conditions, winter gear needed
+        - Codes 80-99: Severe weather, take precautions
+        - Unknown codes return "Unknown weather code" - may be API error
+
+    Example:
+        # Get weather and interpret code
+        forecast = await get_weather_forecast(lat, lon, current_weather=True)
+        code = forecast.current_weather.weathercode
+        interpretation = await interpret_weather_code(code)
+        # Returns: WeatherCodeInterpretation(code=61, description="Slight rain", severity="rain")
+    """
+    if weather_code in WEATHER_CODES:
+        return WeatherCodeInterpretation(
+            code=weather_code,
+            description=WEATHER_CODES[weather_code]["description"],
+            severity=WEATHER_CODES[weather_code]["severity"],
+        )
+    else:
+        return WeatherCodeInterpretation(
+            code=weather_code,
+            description=f"Unknown weather code: {weather_code}",
+            severity="unknown",
+        )
 
 
 def main():
