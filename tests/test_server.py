@@ -214,12 +214,15 @@ def test_imports():
 
 
 @pytest.mark.asyncio
-async def test_pydantic_validation():
+@pytest.mark.network
+async def test_pydantic_validation(retry_on_network_error):
     """Test that Pydantic validation works correctly."""
-    result = await get_weather_forecast(
-        latitude=51.5072,
-        longitude=-0.1276,
-        current_weather=True,
+    result = await retry_on_network_error(
+        lambda: get_weather_forecast(
+            latitude=51.5072,
+            longitude=-0.1276,
+            current_weather=True,
+        )
     )
 
     # Pydantic models should have dict() method
