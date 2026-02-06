@@ -2,10 +2,8 @@
 name = "chuk-mcp-open-meteo"
 version = "1.0.0"
 description = "Comprehensive MCP server for Open-Meteo weather data - the best weather MCP server"
-authors = [
-    {name = "Chris Hay", email = "chris@example.com"}
-]
 readme = "README.md"
+license = { text = "Apache-2.0" }
 requires-python = ">=3.11"
 dependencies = [
     "chuk-mcp-server>=0.8",

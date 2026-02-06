@@ -2,9 +2,9 @@
 
 **The best weather MCP server ever** - A comprehensive Model Context Protocol (MCP) server for accessing Open-Meteo weather data.
 
-[![PyPI version](https://badge.fury.io/py/chuk-mcp-open-meteo.svg)](https://badge.fury.io/py/chuk-mcp-open-meteo)
+> This is a demonstration project provided as-is for learning and testing purposes.
+
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ## Features
 
@@ -80,7 +80,7 @@ This automatically downloads and runs the latest version. Perfect for Claude Des
 uv pip install chuk-mcp-open-meteo
 
 # Or clone and install from source
-git clone https://github.com/chrishayuk/chuk-mcp-open-meteo.git
+git clone <repository-url>
 cd chuk-mcp-open-meteo
 uv sync --dev
 ```
@@ -301,7 +301,7 @@ Returns: `MarineForecast` Pydantic model
 
 ```bash
 # Clone the repository
-git clone https://github.com/chrishayuk/chuk-mcp-open-meteo.git
+git clone <repository-url>
 cd chuk-mcp-open-meteo
 
 # Install with uv (recommended)
@@ -383,7 +383,7 @@ Please consider [supporting Open-Meteo](https://open-meteo.com/en/pricing) if yo
 
 ## Architecture
 
-Built on top of [chuk-mcp-server](https://github.com/chrishayuk/chuk-mcp-server), this server uses:
+Built on top of chuk-mcp-server, this server uses:
 
 - **Fast & Simple**: Decorator-based tool definitions
 - **Type-Safe**: Automatic JSON-RPC schema generation from Python type hints
@@ -395,7 +395,7 @@ Built on top of [chuk-mcp-server](https://github.com/chrishayuk/chuk-mcp-server)
   - Direction fields explain meteorological conventions
   - All measurements include context and safety thresholds
 - **Async**: Native async/await support for optimal performance
-- **Production-Ready**: Sub-3ms latency, 36,000+ RPS capability
+- **High Performance**: Sub-3ms latency, 36,000+ RPS capability
 - **99% Test Coverage**: Comprehensive test suite ensures reliability
 
 ## Public Server
@@ -439,11 +439,10 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - [Model Context Protocol](https://modelcontextprotocol.io/) for the MCP specification
 - [Anthropic](https://www.anthropic.com/) for Claude and MCP support
 
-## Support
+## License
 
-- GitHub Issues: [Report bugs or request features](https://github.com/chrishayuk/chuk-mcp-open-meteo/issues)
-- Documentation: [Open-Meteo API Docs](https://open-meteo.com/en/docs)
+Apache License 2.0 - See LICENSE for details.
 
----
+## Documentation
 
-**Made with ❤️ by [Chris Hay](https://github.com/chrishayuk)**
+- [Open-Meteo API Docs](https://open-meteo.com/en/docs)

@@ -162,6 +162,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Automated releases and publishing
 - Docker containerization
 - Cloud deployment ready (Fly.io)
-
-[Unreleased]: https://github.com/chrishayuk/chuk-mcp-open-meteo/compare/v1.0.0...HEAD
-[1.0.0]: https://github.com/chrishayuk/chuk-mcp-open-meteo/releases/tag/v1.0.0
