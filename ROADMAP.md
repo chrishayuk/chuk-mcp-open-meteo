@@ -35,6 +35,15 @@ This document outlines the development roadmap for chuk-mcp-open-meteo.
   - Supports both hourly and daily variables
 - Batch Pydantic models for all 5 batch tools (10 new models total)
 
+### v1.2 — Architectural Refactor
+- Decomposed monolithic `server.py` (1155 lines) into focused modules
+  - `tools/` package with 6 domain modules (forecast, geocoding, historical, air_quality, marine, weather_codes)
+  - `_constants.py` — API URLs, default hourly variables, weather codes (no magic strings)
+  - `_batch.py` — generic `batch_fetch()` helper eliminates duplicated code across 4 batch tools
+  - `server.py` reduced to thin entry point (~65 lines)
+- Normalized all batch response models to use `results` field consistently
+- Backward-compatible re-exports from `server.py` for existing imports
+
 ---
 
 ## Planned

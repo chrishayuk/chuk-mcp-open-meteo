@@ -424,20 +424,37 @@ Please consider [supporting Open-Meteo](https://open-meteo.com/en/pricing) if yo
 
 ## Architecture
 
-Built on top of chuk-mcp-server, this server uses:
+Built on top of chuk-mcp-server, this server uses a modular architecture:
 
-- **Fast & Simple**: Decorator-based tool definitions
-- **Type-Safe**: Automatic JSON-RPC schema generation from Python type hints
+```
+src/chuk_mcp_open_meteo/
+├── server.py          # Thin entry point — imports tools, runs server
+├── models.py          # All Pydantic v2 response models (26 models)
+├── _constants.py      # API URLs, default parameters, weather codes
+├── _batch.py          # Generic batch fetch helper (DRY across 4 batch tools)
+└── tools/             # Domain-focused tool modules
+    ├── forecast.py    # get_weather_forecast + batch_get_weather_forecasts
+    ├── geocoding.py   # geocode_location + batch_geocode_locations
+    ├── historical.py  # get_historical_weather + batch_get_historical_weather
+    ├── air_quality.py # get_air_quality + batch_get_air_quality
+    ├── marine.py      # get_marine_forecast + batch_get_marine_forecasts
+    └── weather_codes.py # interpret_weather_code
+```
+
+Design principles:
+
+- **Async Native**: All tools are async/await, all HTTP via httpx.AsyncClient
 - **Pydantic Native**: All responses use Pydantic v2 models for validation and type safety
+- **No Magic Strings**: API URLs and default parameters are named constants
+- **Composable Modules**: Each domain is a self-contained module with single and batch tools
+- **Type-Safe**: Automatic JSON-RPC schema generation from Python type hints
 - **LLM-Optimized**: Rich field descriptions with interpretation guides embedded in models
   - Wave heights include size categories (calm/small/moderate/large/dangerous)
   - Wave periods include quality ratings (choppy/good/excellent)
   - Weather codes include quick reference in field descriptions
   - Direction fields explain meteorological conventions
   - All measurements include context and safety thresholds
-- **Async**: Native async/await support for optimal performance
 - **High Performance**: Sub-3ms latency, 36,000+ RPS capability
-- **99% Test Coverage**: Comprehensive test suite ensures reliability
 
 ## Public Server
 
