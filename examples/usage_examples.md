@@ -330,6 +330,27 @@ Claude:
 [Assesses diving conditions and provides recommendations]
 ```
 
+### Multi-City Weather with Code Interpretation
+
+```
+You: What's the weather like across the UK right now? Show major cities.
+
+Claude:
+[Uses batch_geocode_locations("London,Birmingham,Manchester,Glasgow,Edinburgh")]
+[Uses batch_get_weather_forecasts with all coordinates, current_weather=true]
+[Uses batch_interpret_weather_codes("3,51,3,51,3") with all weather codes at once]
+
+Response: UK Weather Right Now:
+- London: 10.9°C, Overcast, wind 18.7 km/h
+- Birmingham: 9.8°C, Overcast, wind 27.7 km/h
+- Manchester: 11.1°C, Overcast, wind 22.0 km/h
+- Glasgow: 10.4°C, Light drizzle, wind 20.9 km/h
+- Edinburgh: 10.7°C, Overcast, wind 20.9 km/h
+```
+
+Note: `batch_interpret_weather_codes` interprets all codes in one call
+instead of making separate `interpret_weather_code` calls per city.
+
 ## Tips for Best Results
 
 1. **Be Specific**: Include location names, date ranges, and specific weather parameters

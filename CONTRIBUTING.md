@@ -119,34 +119,36 @@ We use Ruff for linting and formatting:
 
 When adding a new weather tool:
 
-1. **Add the tool function** in `src/chuk_mcp_open_meteo/server.py`:
+1. **Add Pydantic models** in `src/chuk_mcp_open_meteo/models.py`
+2. **Add the tool function** in the appropriate `src/chuk_mcp_open_meteo/tools/` module (or create a new one):
 
 ```python
+from chuk_mcp_server import tool
+from ..models import YourResponseModel
+
 @tool
 async def your_new_tool(
     latitude: float,
     longitude: float,
-    # ... other parameters
-) -> dict[str, Any]:
+) -> YourResponseModel:
     """Clear description of what the tool does.
 
     Args:
-        latitude: Description
-        longitude: Description
+        latitude: Latitude of the location
+        longitude: Longitude of the location
 
     Returns:
-        Description of return value
+        YourResponseModel with the results
     """
-    # Implementation
     async with httpx.AsyncClient() as client:
         response = await client.get(API_URL, params=params)
         response.raise_for_status()
-        return response.json()
+        return YourResponseModel(**response.json())
 ```
 
-2. **Add documentation** in README.md
-3. **Add usage examples** in examples/usage_examples.md
-4. **Add tests** (when test infrastructure is added)
+3. **Re-export** from `server.py` and add to `__all__`
+4. **Add tests** in `tests/test_server.py`
+5. **Update documentation** in README.md, CHANGELOG.md, and ROADMAP.md
 
 ## Documentation
 
