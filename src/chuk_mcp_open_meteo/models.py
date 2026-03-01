@@ -322,3 +322,115 @@ class WeatherCodeInterpretation(BaseModel):
         ...,
         description="Weather severity category: clear, cloudy, fog, drizzle, rain, freezing, snow, showers, thunderstorm, unknown",
     )
+
+
+# Batch Response Models
+class BatchGeocodingItem(BaseModel):
+    """Result for a single location in a batch geocoding request."""
+
+    query: str = Field(..., description="The original location name that was searched")
+    found: bool = Field(..., description="Whether any results were found for this query")
+    results: Optional[list[GeocodingResult]] = Field(
+        None, description="List of matching locations (None if not found)"
+    )
+    error: Optional[str] = Field(
+        None, description="Error message if the geocoding request failed for this location"
+    )
+
+
+class BatchGeocodingResponse(BaseModel):
+    """Response from batch geocoding multiple locations concurrently."""
+
+    results: list[BatchGeocodingItem] = Field(
+        ..., description="Results for each queried location, in the same order as the input"
+    )
+    total_queries: int = Field(..., description="Total number of location queries submitted")
+    successful: int = Field(
+        ..., description="Number of locations that returned at least one result"
+    )
+    failed: int = Field(
+        ..., description="Number of locations that returned no results or had errors"
+    )
+
+
+class BatchWeatherForecastItem(BaseModel):
+    """A single forecast within a batch response, tagged with a location index."""
+
+    location_index: int = Field(
+        ...,
+        description="Zero-based index corresponding to the position in the input latitude/longitude arrays",
+    )
+    forecast: WeatherForecast = Field(
+        ..., description="The weather forecast data for this location"
+    )
+
+
+class BatchWeatherForecastResponse(BaseModel):
+    """Response from batch weather forecast for multiple locations."""
+
+    results: list[BatchWeatherForecastItem] = Field(
+        ..., description="Weather forecasts for each location, indexed by position in input arrays"
+    )
+    total_locations: int = Field(..., description="Total number of locations queried")
+
+
+class BatchAirQualityItem(BaseModel):
+    """A single air quality result within a batch response."""
+
+    location_index: int = Field(
+        ...,
+        description="Zero-based index corresponding to the position in the input latitude/longitude arrays",
+    )
+    air_quality: AirQualityResponse = Field(
+        ..., description="The air quality data for this location"
+    )
+
+
+class BatchAirQualityResponse(BaseModel):
+    """Response from batch air quality query for multiple locations."""
+
+    results: list[BatchAirQualityItem] = Field(
+        ..., description="Air quality data for each location, indexed by position in input arrays"
+    )
+    total_locations: int = Field(..., description="Total number of locations queried")
+
+
+class BatchMarineForecastItem(BaseModel):
+    """A single marine forecast within a batch response."""
+
+    location_index: int = Field(
+        ...,
+        description="Zero-based index corresponding to the position in the input latitude/longitude arrays",
+    )
+    forecast: MarineForecast = Field(..., description="The marine forecast data for this location")
+
+
+class BatchMarineForecastResponse(BaseModel):
+    """Response from batch marine forecast for multiple locations."""
+
+    results: list[BatchMarineForecastItem] = Field(
+        ..., description="Marine forecasts for each location, indexed by position in input arrays"
+    )
+    total_locations: int = Field(..., description="Total number of locations queried")
+
+
+class BatchHistoricalWeatherItem(BaseModel):
+    """A single historical weather result within a batch response."""
+
+    location_index: int = Field(
+        ...,
+        description="Zero-based index corresponding to the position in the input latitude/longitude arrays",
+    )
+    weather: HistoricalWeather = Field(
+        ..., description="The historical weather data for this location"
+    )
+
+
+class BatchHistoricalWeatherResponse(BaseModel):
+    """Response from batch historical weather query for multiple locations."""
+
+    results: list[BatchHistoricalWeatherItem] = Field(
+        ...,
+        description="Historical weather data for each location, indexed by position in input arrays",
+    )
+    total_locations: int = Field(..., description="Total number of locations queried")

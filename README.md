@@ -8,11 +8,13 @@
 
 ## Features
 
-This MCP server provides comprehensive access to Open-Meteo's weather APIs through six powerful tools.
+This MCP server provides comprehensive access to Open-Meteo's weather APIs through 11 tools — 6 single-location tools and 5 batch tools for multi-location queries.
 
 **All tools return fully-typed Pydantic v2 models** for type safety, validation, and excellent IDE support. Every model includes rich, LLM-friendly field descriptions with interpretation guides for better AI understanding.
 
-### 1. Weather Forecast (`get_weather_forecast`)
+### Single-Location Tools
+
+#### 1. Weather Forecast (`get_weather_forecast`)
 Get detailed weather forecasts with customizable parameters:
 - Current weather conditions
 - Hourly forecasts (up to 16 days)
@@ -21,7 +23,7 @@ Get detailed weather forecasts with customizable parameters:
 - Multiple units (celsius/fahrenheit, km/h, mph, m/s, knots)
 - Automatic timezone detection
 
-### 2. Location Geocoding (`geocode_location`)
+#### 2. Location Geocoding (`geocode_location`)
 Convert location names to coordinates:
 - Search for any location worldwide
 - Get coordinates, elevation, timezone
@@ -29,14 +31,14 @@ Convert location names to coordinates:
 - Population data where available
 - Multi-language support
 
-### 3. Historical Weather (`get_historical_weather`)
+#### 3. Historical Weather (`get_historical_weather`)
 Access historical weather data:
 - Data from 1940 onwards (location-dependent)
 - Same comprehensive variables as forecasts
 - Perfect for climate analysis and trends
 - Hourly and daily aggregations
 
-### 4. Air Quality (`get_air_quality`)
+#### 4. Air Quality (`get_air_quality`)
 Monitor air quality and pollutants:
 - PM2.5, PM10 particulate matter
 - CO, NO2, SO2, O3 gas concentrations
@@ -45,7 +47,7 @@ Monitor air quality and pollutants:
 - UV index
 - Aerosol optical depth
 
-### 5. Marine Forecast (`get_marine_forecast`)
+#### 5. Marine Forecast (`get_marine_forecast`)
 Get marine weather conditions:
 - Wave height, direction, and period
 - Wind waves and swell waves separately
@@ -54,12 +56,51 @@ Get marine weather conditions:
 - Essential for maritime activities
 - Field descriptions include wave quality interpretations (0-0.5m calm, 1.5-2.5m moderate, etc.)
 
-### 6. Weather Code Interpretation (`interpret_weather_code`)
+#### 6. Weather Code Interpretation (`interpret_weather_code`)
 Translate numeric weather codes to descriptions:
 - Converts WMO weather codes (0-99) to human-readable text
 - Includes severity categories (clear, rain, snow, thunderstorm, etc.)
 - Helps LLMs explain weather conditions in natural language
 - Built-in reference for all standard weather codes
+
+### Batch Tools
+
+Batch tools dramatically reduce latency when querying multiple locations. Instead of N sequential tool calls (~3 minutes for 20 cities), batch tools complete in a single call (~0.3–0.5 seconds).
+
+#### 7. Batch Geocoding (`batch_geocode_locations`)
+Geocode multiple location names concurrently:
+- Comma-separated input: `"London,Paris,Berlin,Madrid,Rome"`
+- Concurrent execution with connection pooling
+- Partial failure handling — individual locations can fail without breaking the batch
+- Results in same order as input
+
+#### 8. Batch Weather Forecasts (`batch_get_weather_forecasts`)
+Fetch forecasts for up to 1000 locations in a single API call:
+- Uses Open-Meteo's native multi-location support
+- Single HTTP request for all locations
+- Same parameters as `get_weather_forecast`
+
+#### 9. Batch Air Quality (`batch_get_air_quality`)
+Air quality data for multiple locations in one API call:
+- Compare pollution levels across cities
+- Defaults to common pollutant metrics (PM2.5, PM10, AQI, etc.)
+
+#### 10. Batch Marine Forecasts (`batch_get_marine_forecasts`)
+Marine conditions for multiple coastal points in one API call:
+- Compare surf spots, monitor coastline conditions
+- Waves, swell, currents, and tides across locations
+
+#### 11. Batch Historical Weather (`batch_get_historical_weather`)
+Historical data for multiple locations in one API call:
+- All locations share the same date range
+- Useful for climate comparisons across cities
+
+### Recommended Batch Workflow
+
+```
+1. batch_geocode_locations("London,Paris,Berlin")  → coordinates
+2. batch_get_weather_forecasts(latitudes="51.51,48.86,52.52", longitudes="-0.13,2.35,13.41")  → weather
+```
 
 ## Installation
 
@@ -319,8 +360,8 @@ make test-cov          # Run tests with coverage
 make coverage-report   # Show coverage report
 
 # Run all tests including network tests (requires internet)
-pytest tests/          # Run all 19 tests
-pytest tests/ -m network  # Run only network tests (5 tests)
+pytest tests/          # Run all 35 tests
+pytest tests/ -m network  # Run only network tests
 ```
 
 **Note:** Network tests make real API calls to Open-Meteo and are excluded from CI to avoid flaky builds. They include automatic retry logic for local development.

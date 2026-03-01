@@ -4,12 +4,22 @@ import pytest
 
 from chuk_mcp_open_meteo.models import (
     AirQualityResponse,
+    BatchAirQualityResponse,
+    BatchGeocodingResponse,
+    BatchHistoricalWeatherResponse,
+    BatchMarineForecastResponse,
+    BatchWeatherForecastResponse,
     GeocodingResponse,
     HistoricalWeather,
     MarineForecast,
     WeatherForecast,
 )
 from chuk_mcp_open_meteo.server import (
+    batch_geocode_locations,
+    batch_get_air_quality,
+    batch_get_historical_weather,
+    batch_get_marine_forecasts,
+    batch_get_weather_forecasts,
     get_air_quality,
     geocode_location,
     get_historical_weather,
@@ -363,3 +373,285 @@ def test_main_function_http():
     finally:
         # Restore original argv
         sys.argv = original_argv
+
+
+# --- Batch Tool Tests ---
+
+
+@pytest.mark.asyncio
+async def test_batch_geocode_locations_basic():
+    """Test batch geocoding with multiple cities."""
+    result = await batch_geocode_locations(names="London,Paris,Berlin")
+
+    assert isinstance(result, BatchGeocodingResponse)
+    assert result.total_queries == 3
+    assert result.successful >= 2
+    assert len(result.results) == 3
+    # Verify order preserved
+    assert result.results[0].query == "London"
+    assert result.results[1].query == "Paris"
+    assert result.results[2].query == "Berlin"
+    # Verify found items have coordinates
+    for item in result.results:
+        if item.found:
+            assert item.results is not None
+            assert len(item.results) > 0
+            assert item.results[0].latitude is not None
+            assert item.results[0].longitude is not None
+
+
+@pytest.mark.asyncio
+async def test_batch_geocode_locations_empty():
+    """Test batch geocoding with empty input."""
+    result = await batch_geocode_locations(names="")
+
+    assert isinstance(result, BatchGeocodingResponse)
+    assert result.total_queries == 0
+    assert result.successful == 0
+    assert result.failed == 0
+    assert len(result.results) == 0
+
+
+@pytest.mark.asyncio
+async def test_batch_geocode_locations_partial_failure():
+    """Test batch geocoding where some locations are not found."""
+    result = await batch_geocode_locations(names="London,XyzNotARealPlace12345,Paris")
+
+    assert isinstance(result, BatchGeocodingResponse)
+    assert result.total_queries == 3
+    # London and Paris should be found
+    assert result.results[0].query == "London"
+    assert result.results[2].query == "Paris"
+    # The nonsense name
+    nonsense_item = result.results[1]
+    assert nonsense_item.query == "XyzNotARealPlace12345"
+    assert nonsense_item.found is False
+
+
+@pytest.mark.asyncio
+async def test_batch_geocode_locations_whitespace():
+    """Test that whitespace around commas is trimmed."""
+    result = await batch_geocode_locations(names="London , Paris , Berlin")
+
+    assert isinstance(result, BatchGeocodingResponse)
+    assert result.total_queries == 3
+    assert result.results[0].query == "London"
+    assert result.results[1].query == "Paris"
+    assert result.results[2].query == "Berlin"
+
+
+@pytest.mark.asyncio
+async def test_batch_get_weather_forecasts_basic():
+    """Test batch weather forecasts for multiple locations."""
+    # London, Paris, Berlin
+    result = await batch_get_weather_forecasts(
+        latitudes="51.51,48.86,52.52",
+        longitudes="-0.13,2.35,13.41",
+        current_weather=True,
+    )
+
+    assert isinstance(result, BatchWeatherForecastResponse)
+    assert result.total_locations == 3
+    assert len(result.results) == 3
+    for i, item in enumerate(result.results):
+        assert item.location_index == i
+        assert item.forecast.current_weather is not None
+        assert item.forecast.current_weather.temperature is not None
+
+
+@pytest.mark.asyncio
+async def test_batch_get_weather_forecasts_single():
+    """Test batch forecast with single location (edge case)."""
+    result = await batch_get_weather_forecasts(
+        latitudes="51.51",
+        longitudes="-0.13",
+        current_weather=True,
+    )
+
+    assert isinstance(result, BatchWeatherForecastResponse)
+    assert result.total_locations == 1
+    assert len(result.results) == 1
+    assert result.results[0].location_index == 0
+
+
+@pytest.mark.asyncio
+async def test_batch_get_weather_forecasts_with_daily():
+    """Test batch forecast with daily parameters."""
+    result = await batch_get_weather_forecasts(
+        latitudes="51.51,48.86",
+        longitudes="-0.13,2.35",
+        daily="temperature_2m_max,temperature_2m_min",
+        forecast_days=3,
+    )
+
+    assert isinstance(result, BatchWeatherForecastResponse)
+    assert result.total_locations == 2
+    for item in result.results:
+        assert item.forecast.daily is not None
+        assert item.forecast.daily.temperature_2m_max is not None
+
+
+def test_batch_imports():
+    """Test that batch tools and models can be imported."""
+    from chuk_mcp_open_meteo import server
+    from chuk_mcp_open_meteo import models
+
+    assert hasattr(server, "batch_geocode_locations")
+    assert hasattr(server, "batch_get_weather_forecasts")
+    assert hasattr(server, "batch_get_air_quality")
+    assert hasattr(server, "batch_get_marine_forecasts")
+    assert hasattr(server, "batch_get_historical_weather")
+
+    assert hasattr(models, "BatchGeocodingResponse")
+    assert hasattr(models, "BatchGeocodingItem")
+    assert hasattr(models, "BatchWeatherForecastResponse")
+    assert hasattr(models, "BatchWeatherForecastItem")
+    assert hasattr(models, "BatchAirQualityResponse")
+    assert hasattr(models, "BatchAirQualityItem")
+    assert hasattr(models, "BatchMarineForecastResponse")
+    assert hasattr(models, "BatchMarineForecastItem")
+    assert hasattr(models, "BatchHistoricalWeatherResponse")
+    assert hasattr(models, "BatchHistoricalWeatherItem")
+
+
+# --- Batch Air Quality Tests ---
+
+
+@pytest.mark.asyncio
+async def test_batch_get_air_quality_basic():
+    """Test batch air quality for multiple locations."""
+    # London, Paris, Berlin
+    result = await batch_get_air_quality(
+        latitudes="51.51,48.86,52.52",
+        longitudes="-0.13,2.35,13.41",
+    )
+
+    assert isinstance(result, BatchAirQualityResponse)
+    assert result.total_locations == 3
+    assert len(result.results) == 3
+    for i, item in enumerate(result.results):
+        assert item.location_index == i
+        assert item.air_quality.hourly is not None
+
+
+@pytest.mark.asyncio
+async def test_batch_get_air_quality_single():
+    """Test batch air quality with single location."""
+    result = await batch_get_air_quality(
+        latitudes="34.05",
+        longitudes="-118.24",
+    )
+
+    assert isinstance(result, BatchAirQualityResponse)
+    assert result.total_locations == 1
+    assert len(result.results) == 1
+    assert result.results[0].location_index == 0
+    assert result.results[0].air_quality.hourly is not None
+
+
+@pytest.mark.asyncio
+async def test_batch_get_air_quality_custom_hourly():
+    """Test batch air quality with custom hourly variables."""
+    result = await batch_get_air_quality(
+        latitudes="51.51,48.86",
+        longitudes="-0.13,2.35",
+        hourly="pm2_5,us_aqi",
+    )
+
+    assert isinstance(result, BatchAirQualityResponse)
+    assert result.total_locations == 2
+    for item in result.results:
+        assert item.air_quality.hourly is not None
+        assert item.air_quality.hourly.pm2_5 is not None
+
+
+# --- Batch Marine Forecast Tests ---
+
+
+@pytest.mark.asyncio
+async def test_batch_get_marine_forecasts_basic():
+    """Test batch marine forecasts for multiple ocean locations."""
+    # Hawaii, mid-Atlantic
+    result = await batch_get_marine_forecasts(
+        latitudes="21.31,0.0",
+        longitudes="-157.86,0.0",
+    )
+
+    assert isinstance(result, BatchMarineForecastResponse)
+    assert result.total_locations == 2
+    assert len(result.results) == 2
+    for i, item in enumerate(result.results):
+        assert item.location_index == i
+        assert item.forecast.hourly is not None
+        assert item.forecast.hourly.wave_height is not None
+
+
+@pytest.mark.asyncio
+async def test_batch_get_marine_forecasts_single():
+    """Test batch marine forecast with single location."""
+    result = await batch_get_marine_forecasts(
+        latitudes="21.31",
+        longitudes="-157.86",
+    )
+
+    assert isinstance(result, BatchMarineForecastResponse)
+    assert result.total_locations == 1
+    assert result.results[0].location_index == 0
+
+
+@pytest.mark.asyncio
+async def test_batch_get_marine_forecasts_with_daily():
+    """Test batch marine forecast with daily parameters."""
+    result = await batch_get_marine_forecasts(
+        latitudes="21.31,0.0",
+        longitudes="-157.86,0.0",
+        daily="wave_height_max,wave_direction_dominant",
+        forecast_days=3,
+    )
+
+    assert isinstance(result, BatchMarineForecastResponse)
+    assert result.total_locations == 2
+    for item in result.results:
+        assert item.forecast.daily is not None
+        assert item.forecast.daily.wave_height_max is not None
+
+
+# --- Batch Historical Weather Tests ---
+
+
+@pytest.mark.asyncio
+async def test_batch_get_historical_weather_basic():
+    """Test batch historical weather for multiple locations."""
+    # London, Paris
+    result = await batch_get_historical_weather(
+        latitudes="51.51,48.86",
+        longitudes="-0.13,2.35",
+        start_date="2024-01-01",
+        end_date="2024-01-07",
+        daily="temperature_2m_max,temperature_2m_min",
+    )
+
+    assert isinstance(result, BatchHistoricalWeatherResponse)
+    assert result.total_locations == 2
+    assert len(result.results) == 2
+    for i, item in enumerate(result.results):
+        assert item.location_index == i
+        assert item.weather.daily is not None
+        assert item.weather.daily.temperature_2m_max is not None
+
+
+@pytest.mark.asyncio
+async def test_batch_get_historical_weather_single():
+    """Test batch historical weather with single location."""
+    result = await batch_get_historical_weather(
+        latitudes="51.51",
+        longitudes="-0.13",
+        start_date="2024-06-01",
+        end_date="2024-06-02",
+        hourly="temperature_2m,precipitation",
+    )
+
+    assert isinstance(result, BatchHistoricalWeatherResponse)
+    assert result.total_locations == 1
+    assert result.results[0].location_index == 0
+    assert result.results[0].weather.hourly is not None
