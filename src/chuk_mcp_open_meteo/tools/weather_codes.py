@@ -2,7 +2,7 @@
 
 from chuk_mcp_server import tool
 
-from .._constants import WEATHER_CODES
+from .._constants import SEVERITY_ICONS, WEATHER_CODES
 from ..models import (
     BatchWeatherCodeItem,
     BatchWeatherCodeResponse,
@@ -76,24 +76,34 @@ async def interpret_weather_code(weather_code: int) -> WeatherCodeInterpretation
         - Codes 80-99: Severe weather, take precautions
         - Unknown codes return "Unknown weather code" - may be API error
 
+    Map icon tip:
+        The returned `icon` field is a PNG URL for the weather condition.
+        When building a GeoJSON FeatureCollection to show on a map, put this
+        URL in each feature's `properties.icon` field — the map renderer will
+        use it as the marker image instead of the default blue pin.
+
     Example:
         # Get weather and interpret code
         forecast = await get_weather_forecast(lat, lon, current_weather=True)
         code = forecast.current_weather.weathercode
         interpretation = await interpret_weather_code(code)
-        # Returns: WeatherCodeInterpretation(code=61, description="Slight rain", severity="rain")
+        # Returns: WeatherCodeInterpretation(code=61, description="Slight rain",
+        #          severity="rain", icon="https://openweathermap.org/img/wn/10d@2x.png")
     """
     if weather_code in WEATHER_CODES:
+        info = WEATHER_CODES[weather_code]
         return WeatherCodeInterpretation(
             code=weather_code,
-            description=WEATHER_CODES[weather_code]["description"],
-            severity=WEATHER_CODES[weather_code]["severity"],
+            description=info["description"],
+            severity=info["severity"],
+            icon=SEVERITY_ICONS.get(info["severity"], ""),
         )
     else:
         return WeatherCodeInterpretation(
             code=weather_code,
             description=f"Unknown weather code: {weather_code}",
             severity="unknown",
+            icon="",
         )
 
 
@@ -111,8 +121,14 @@ async def batch_interpret_weather_codes(weather_codes: str) -> BatchWeatherCodeR
 
     Returns:
         BatchWeatherCodeResponse: Pydantic model with:
-            - results: List of interpretations in same order as input
+            - results: List of interpretations in same order as input (each includes an icon URL)
             - total_codes: Number of codes processed
+
+    Map icon tip:
+        Each result includes an `icon` field — a PNG URL for the weather condition.
+        When building a GeoJSON FeatureCollection for a map, put each result's `icon`
+        in the corresponding feature's `properties.icon` so the map shows weather
+        icons instead of default blue pins.
 
     Example:
         # After batch forecast returns codes for multiple cities:
@@ -131,16 +147,19 @@ async def batch_interpret_weather_codes(weather_codes: str) -> BatchWeatherCodeR
                     code=-1,
                     description=f"Invalid weather code: {code_str!r}",
                     severity="unknown",
+                    icon="",
                 )
             )
             continue
 
         if code in WEATHER_CODES:
+            info = WEATHER_CODES[code]
             items.append(
                 BatchWeatherCodeItem(
                     code=code,
-                    description=WEATHER_CODES[code]["description"],
-                    severity=WEATHER_CODES[code]["severity"],
+                    description=info["description"],
+                    severity=info["severity"],
+                    icon=SEVERITY_ICONS.get(info["severity"], ""),
                 )
             )
         else:
@@ -149,6 +168,7 @@ async def batch_interpret_weather_codes(weather_codes: str) -> BatchWeatherCodeR
                     code=code,
                     description=f"Unknown weather code: {code}",
                     severity="unknown",
+                    icon="",
                 )
             )
 

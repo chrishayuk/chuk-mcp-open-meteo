@@ -46,3 +46,19 @@ WEATHER_CODES: dict[int, dict[str, str]] = {
     96: {"description": "Thunderstorm with slight hail", "severity": "thunderstorm"},
     99: {"description": "Thunderstorm with heavy hail", "severity": "thunderstorm"},
 }
+
+# OpenWeatherMap icon CDN — maps severity categories to representative icon codes.
+# Use @2x for high-DPI markers on maps.  "d" = day variant (always legible).
+_OWM_CDN = "https://openweathermap.org/img/wn"
+
+SEVERITY_ICONS: dict[str, str] = {
+    "clear": f"{_OWM_CDN}/01d@2x.png",
+    "cloudy": f"{_OWM_CDN}/04d@2x.png",
+    "fog": f"{_OWM_CDN}/50d@2x.png",
+    "drizzle": f"{_OWM_CDN}/09d@2x.png",
+    "freezing": f"{_OWM_CDN}/13d@2x.png",
+    "rain": f"{_OWM_CDN}/10d@2x.png",
+    "snow": f"{_OWM_CDN}/13d@2x.png",
+    "showers": f"{_OWM_CDN}/09d@2x.png",
+    "thunderstorm": f"{_OWM_CDN}/11d@2x.png",
+}

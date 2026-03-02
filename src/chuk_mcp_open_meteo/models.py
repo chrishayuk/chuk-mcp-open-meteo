@@ -322,6 +322,10 @@ class WeatherCodeInterpretation(BaseModel):
         ...,
         description="Weather severity category: clear, cloudy, fog, drizzle, rain, freezing, snow, showers, thunderstorm, unknown",
     )
+    icon: str = Field(
+        "",
+        description="Weather icon URL (PNG). Put this in a GeoJSON feature's 'icon' property to show as a map marker.",
+    )
 
 
 # Batch Response Models
@@ -333,6 +337,10 @@ class BatchWeatherCodeItem(BaseModel):
     severity: str = Field(
         ...,
         description="Weather severity category: clear, cloudy, fog, drizzle, rain, freezing, snow, showers, thunderstorm, unknown",
+    )
+    icon: str = Field(
+        "",
+        description="Weather icon URL (PNG). Put this in a GeoJSON feature's 'icon' property to show as a map marker.",
     )
 
 
